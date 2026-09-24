@@ -40,6 +40,10 @@ run https://bpmbpm.github.io/mdld-test/
 - SPARQL 1.1 (W3C) — https://www.w3.org/TR/sparql11-query/
 
 ### note
+- notes/manifest.json
 - notes/note1.md  
 - notes/note2.md
-
+- SPARQL/manifest.json 
+- SPARQL/01-all-triples.rq Первый в списке — вывод всех триплетов (?s ?p ?o).
+- SPARQL/02-all-notes.rq
+- SPARQL/03-notes-by-author.rq
