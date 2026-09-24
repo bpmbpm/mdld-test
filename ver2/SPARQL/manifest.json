@@ -1,9 +1,9 @@
 [
   "01-all-triples.rq",
   "02-all-notes.rq",
-  "03-notes-by-author.rq"
-  "04-persons.rq"
-  "05-hobbies.rq"
-  "06-worksfor.rq"
+  "03-notes-by-author.rq",
+  "04-persons.rq",
+  "05-hobbies.rq",
+  "06-worksfor.rq",
   "07-distance.rq"
 ]
