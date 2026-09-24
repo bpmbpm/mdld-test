@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Клиентский семантический Zettelkasten</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { color: #2c3e50; }
+    .note { border-left: 3px solid #3498db; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+    .note strong { color: #3498db; }
+    textarea { width: 100%; font-family: monospace; font-size: 0.9rem; }
+    button { padding: 0.5rem 1rem; cursor: pointer; }
+    pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
+    #status { color: #888; font-style: italic; }
+    #error { color: #c0392b; }
+  </style>
+</head>
+<body>
+  <h1>📚 Клиентский семантический Zettelkasten</h1>
+  <p id="status">Загрузка графа знаний…</p>
+  <div id="error"></div>
+
+  <h2>Все заметки</h2>
+  <div id="all-notes"></div>
+
+  <h2>SPARQL-консоль</h2>
+  <p>Введите запрос к графу:</p>
+  <textarea id="query" rows="8">PREFIX schema: <http://schema.org/>
+SELECT ?title ?author WHERE {
+  ?note a schema:CreativeWork ;
+        schema:name ?title ;
+        schema:author ?author .
+}
+ORDER BY ?title</textarea>
+  <br>
+  <button onclick="runQuery()">Выполнить</button>
+  <pre id="results"></pre>
+
+  <script type="module">
+    // 1. Импортируем парсер MD-LD и Oxigraph через CDN
+    import { parse } from 'https://cdn.jsdelivr.net/npm/mdld-parse/+esm';
+    import init, * as oxigraph from 'https://cdn.jsdelivr.net/npm/oxigraph@latest/web.js';
+
+    const statusEl = document.getElementById('status');
+    const errorEl = document.getElementById('error');
+    const allNotesEl = document.getElementById('all-notes');
+    const resultsEl = document.getElementById('results');
+
+    // 2. Инициализируем Oxigraph WASM
+    await init();
+    const store = new oxigraph.Store();
+
+    // 3. Загружаем все Markdown-файлы из папки notes/
+    const noteFiles = ['note1.md', 'note2.md'];
+    let loadedCount = 0;
+
+    for (const file of noteFiles) {
+      try {
+        const response = await fetch(`./notes/${file}`);
+        if (!response.ok) throw new Error(`Не удалось загрузить ${file}`);
+        const mdText = await response.text();
+
+        // 4. Парсим MD-LD в RDF/JS quads
+        const result = parse({ text: mdText });
+
+        // 5. Добавляем quads в Oxigraph store
+        for (const quad of result.quads) {
+          store.add(quad);
+        }
+        loadedCount++;
+      } catch (err) {
+        errorEl.textContent += `Ошибка при загрузке ${file}: ${err.message}\n`;
+      }
+    }
+
+    statusEl.textContent = `Загружено ${loadedCount} заметок, ${store.size} триплетов.`;
+
+    // 6. Выполняем начальный SPARQL-запрос для отображения всех заметок
+    async function renderAllNotes() {
+      const query = `
+        PREFIX schema: <http://schema.org/>
+        SELECT ?title ?author ?date WHERE {
+          ?note a schema:CreativeWork ;
+                schema:name ?title .
+          OPTIONAL { ?note schema:author ?author }
+          OPTIONAL { ?note schema:dateCreated ?date }
+        }
+        ORDER BY ?title
+      `;
+
+      try {
+        const results = store.query(query);
+        let html = '';
+        for (const binding of results) {
+          const title = binding.get('title')?.value || 'Без названия';
+          const author = binding.get('author')?.value || '—';
+          const date = binding.get('date')?.value || '—';
+          html += `
+            <div class="note">
+              <strong>${title}</strong>
+              <p>Автор: ${author} · Дата: ${date}</p>
+            </div>
+          `;
+        }
+        allNotesEl.innerHTML = html || '<p>Заметок пока нет.</p>';
+      } catch (err) {
+        allNotesEl.innerHTML = `<p style="color:red">Ошибка: ${err.message}</p>`;
+      }
+    }
+
+    await renderAllNotes();
+
+    // 7. Функция для выполнения произвольного SPARQL-запроса
+    window.runQuery = async () => {
+      const query = document.getElementById('query').value;
+      try {
+        const results = store.query(query);
+        const rows = [];
+        for (const binding of results) {
+          const row = {};
+          for (const [key, value] of binding) {
+            row[key] = value.value;
+          }
+          rows.push(row);
+        }
+        resultsEl.textContent = JSON.stringify(rows, null, 2);
+      } catch (err) {
+        resultsEl.textContent = `Ошибка: ${err.message}`;
+      }
+    };
+  </script>
+</body>
+</html>
