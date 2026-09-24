@@ -1,0 +1,8 @@
+PREFIX schema: <http://schema.org/>
+SELECT ?from ?to ?value ?unit WHERE {
+  ?dist a <tag:example.org,2026:Distance> ;
+        schema:value ?value ;
+        schema:unitText ?unit .
+  OPTIONAL { ?dist <tag:example.org,2026:from> ?from }
+  OPTIONAL { ?dist <tag:example.org,2026:to> ?to }
+}
