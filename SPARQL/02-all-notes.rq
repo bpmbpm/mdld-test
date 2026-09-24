@@ -1,0 +1,9 @@
+PREFIX schema: <http://schema.org/>
+
+SELECT ?note ?title ?author
+WHERE {
+  ?note a schema:CreativeWork ;
+        schema:name ?title .
+  OPTIONAL { ?note schema:author ?author }
+}
+ORDER BY ?title
