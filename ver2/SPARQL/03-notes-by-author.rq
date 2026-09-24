@@ -1,0 +1,9 @@
+PREFIX schema: <http://schema.org/>
+
+SELECT ?author (COUNT(?note) AS ?count)
+WHERE {
+  ?note a schema:CreativeWork ;
+        schema:author ?author .
+}
+GROUP BY ?author
+ORDER BY DESC(?count)
