@@ -1,0 +1,5 @@
+PREFIX schema: <http://schema.org/>
+SELECT ?person ?hobby WHERE {
+  ?person schema:knowsAbout ?hobby .
+  ?hobby schema:name ?hobbyName .
+}
