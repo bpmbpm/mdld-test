@@ -1,6 +1,7 @@
 # mdld-test
 mdld-test  
-run https://bpmbpm.github.io/mdld-test/
+run https://bpmbpm.github.io/mdld-test/ver1
+
 # mdld-test — клиентский семантический Zettelkasten
 
 Демонстрационный проект, показывающий, как построить семантическую вики на GitHub Pages **без сборки и без CLI**.  
