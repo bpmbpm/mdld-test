@@ -393,3 +393,88 @@ HTML с RDFa-разметкой и JSON-LD, валидный по schema.org.
 - Markdown-RDFa — https://github.com/tetherless-world/markdown-rdfa
 - mdx_semanticdata — https://pypi.org/project/mdx_semanticdata/
 - Lexify — https://github.com/dtex/lexify
+
+## 3a
+Для `3. Vault-LD` - где prefix?
+
+Вы правы — в том примере Vault-LD не было объявления префиксов, потому что использовался **простой строковый `@context`**, который напрямую указывает на словарь Schema.org. В Vault-LD префиксы не объявляются через `@prefix`, как в Turtle — они задаются внутри **JSON-LD `@context`**, который может быть либо строкой (URL словаря), либо объектом с явными определениями префиксов.
+
+### 🧩 Как Vault-LD работает с префиксами
+
+Vault-LD использует YAML-LD frontmatter, а YAML-LD — это сериализация JSON-LD в YAML. Поэтому все правила JSON-LD применяются и здесь. Префиксы в JSON-LD определяются одним из двух способов:
+
+1. **`@vocab`** — задаёт пространство имён по умолчанию для всех терминов без префикса. Если `@context` — строка `"https://schema.org/"`, то неявно используется `@vocab: "https://schema.org/"`, и все поля frontmatter (`name`, `author` и т.д.) автоматически разрешаются в `schema:name`, `schema:author`. Именно это и было в примере — префикс `schema:` просто не нужен, потому что Schema.org является словарём по умолчанию.
+
+2. **Явные определения префиксов** — если нужно смешивать несколько словарей, `@context` становится объектом, где каждому префиксу сопоставляется его IRI:
+
+```json
+"@context": {
+  "schema": "https://schema.org/",
+  "ex": "https://example.org/vocab/",
+  "foaf": "http://xmlns.com/foaf/0.1/"
+}
+```
+
+После этого в frontmatter можно использовать компактные IRI:
+
+```yaml
+schema:name: "Алиса"
+ex:employeeId: "A-001"
+foaf:knows: "#bob"
+```
+
+### 📂 Пример Vault-LD с явными префиксами
+
+**Файл `notes/alice.md`:**
+
+```markdown
+---
+"@context":
+  schema: "https://schema.org/"
+  ex: "https://example.org/vocab/"
+"@id": "#alice"
+"@type": "schema:Person"
+schema:name: "Алиса"
+ex:employeeId: "A-001"
+schema:knows:
+  "@id": "#bob"
+  "@type": "schema:Person"
+  schema:name: "Боб"
+---
+
+# Алиса
+
+Заметка о сотруднике.
+```
+
+**Что генерирует (Turtle):**
+
+```turtle
+<#alice> a schema:Person ;
+    schema:name "Алиса" ;
+    ex:employeeId "A-001" ;
+    schema:knows <#bob> .
+
+<#bob> a schema:Person ;
+    schema:name "Боб" .
+```
+
+### 🏗️ «Составной контекст» на уровне vault
+
+Vault-LD рекомендует хранить общий `@context` в корне vault в файле `context.jsonld`. Этот контекст **композируется** из контекстов отдельных онтологий — каждая онтология может приносить свои префиксы, а корневой контекст их объединяет. Это позволяет не дублировать определения в каждом `.md` файле: вы просто указываете `"@context": "./context.jsonld"`, а все префиксы уже доступны.
+
+### 💎 Итог
+
+В Vault-LD нет отдельного механизма `@prefix`, как в Turtle. Вместо этого используется **JSON-LD `@context`**, который может быть:
+- **строкой** — тогда один словарь становится пространством имён по умолчанию (префиксы не нужны);
+- **объектом** — тогда вы явно определяете префиксы для нескольких словарей;
+- **ссылкой на общий `context.jsonld`** в корне vault — тогда префиксы композируются из онтологий.
+
+В моём первом примере префикс отсутствовал именно потому, что использовался строковый `@context: "https://schema.org/"` — это эквивалент `@vocab`, при котором все термины автоматически получают префикс Schema.org.
+
+**Ссылки:**
+- Vault-LD (GitHub) — https://github.com/The-Knowledge-Graph-Guys/vault-ld
+- Vault-LD (спецификация) — https://github.com/The-Knowledge-Graph-Guys/vault-ld/blob/main/SPEC.md
+- Vault-LD Example vault — https://github.com/The-Knowledge-Graph-Guys/vault-ld/tree/main/Vault-LD%20Example
+- YAML-LD спецификация — https://json-ld.github.io/yaml-ld/spec/
+- JSON-LD 1.1 (W3C) — https://www.w3.org/TR/json-ld11/
