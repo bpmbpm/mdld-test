@@ -139,3 +139,257 @@
 - markdown-rdfa — https://github.com/tetherless-world/markdown-rdfa
 - mdx_semanticdata — https://pypi.org/project/mdx-semantic/
 - lexify — https://cdn.jsdelivr.net/npm/lexify
+
+## 3 In-band
+
+Ниже — простые примеры для всех встроенных (in-band) форматов семантической разметки Markdown, которые мы обсуждали. Для каждого формата показан минимальный фрагмент, порождаемые RDF-триплеты и анализ преимуществ и недостатков.
+
+---
+
+## 1. MD-LD (`mdld-parse`, davay42)
+
+**Пример (MD-LD):**
+
+```markdown
+[ex] <tag:example.org,2026:>
+
+# Алиса {=ex:alice .schema:Person schema:name}
+
+[Боб] {+ex:bob ?schema:knows .schema:Person schema:name}
+```
+
+**Что генерирует (Turtle):**
+
+```turtle
+ex:alice a schema:Person ;
+    schema:name "Алиса" ;
+    schema:knows ex:bob .
+
+ex:bob a schema:Person ;
+    schema:name "Боб" .
+```
+
+**Преимущества:**
+- Аннотации `{...}` локальны и минимальны — без них текст остаётся чистым Markdown.
+- Поддерживает round-trip: `parse()` извлекает quads, `generate()` восстанавливает MD-LD.
+- Zero-dependency, работает в браузере и Node.js, ~15 КБ minified.
+- Потоковый парсер: линейная сложность, без построения AST в памяти.
+
+**Недостатки:**
+- Фигурные скобки `{...}` видны в GitHub-рендеринге как обычный текст.
+- Требует дисциплины: каждый триплет должен быть явно аннотирован.
+- Меньшая экосистема, чем у RDFa или JSON-LD.
+
+**Ссылка:** https://www.npmjs.com/package/mdld-parse
+
+---
+
+## 2. Markdown-LD (ozekik)
+
+**Пример (Markdown-LD):**
+
+```markdown
+# Мой граф
+
+`<http://example.com/>`
+
+## Alice
+
+`<#Alice>`
+
+### Knows
+
+`foaf:knows`
+
+* Bob `<#Bob>`
+```
+
+**Что генерирует (Turtle):**
+
+```turtle
+<#Alice> foaf:knows <#Bob> .
+```
+
+**Преимущества:**
+- «Literate programming» для Turtle: RDF-термы прячутся в заголовках и инлайн-коде.
+- Компилируется в Turtle (по умолчанию) и JSON-LD через плагин `unified`/`remark`.
+- Есть онлайн-playground для быстрого тестирования.
+
+**Недостатки:**
+- **Не поддерживает round-trip** — только MD → RDF, обратное преобразование невозможно.
+- Синтаксис неочевиден: H2 — субъект, H3 — предикат, список — объект.
+- Требует CLI (`markdownld`) или плагина для сборки.
+- Последний коммит — 2024 год, проект менее активен.
+
+**Ссылка:** https://github.com/ozekik/markdown-ld
+
+---
+
+## 3. Vault-LD
+
+**Пример (Vault-LD):**
+
+```markdown
+---
+"@context": "https://schema.org/"
+"@id": "#hummus"
+"@type": "Recipe"
+name: "Hummus"
+recipeIngredient:
+  - "Chickpeas"
+  - "Tahini"
+---
+
+# Hummus
+
+Классический рецепт хумуса.
+```
+
+**Что генерирует (Turtle):**
+
+```turtle
+<#hummus> a schema:Recipe ;
+    schema:name "Hummus" ;
+    schema:recipeIngredient "Chickpeas", "Tahini" .
+```
+
+**Преимущества:**
+- Frontmatter — привычный формат для Obsidian, Jekyll, Hugo.
+- **Round-trip с полной точностью**: RDF → vault → RDF без потерь.
+- Естественная интеграция с существующими онтологиями через `@context`.
+- «Проза для людей и LLM, триплеты для машин».
+
+**Недостатки:**
+- Семантика сосредоточена **только в frontmatter** — тело заметки не аннотируется.
+- Требуется общий `@context.jsonld` в корне vault.
+- Относительно новый проект (2026), мало примеров в сообществе.
+
+**Ссылка:** https://github.com/The-Knowledge-Graph-Guys/vault-ld
+
+---
+
+## 4. Markdown-RDFa (tetherless-world)
+
+**Пример (Markdown + RDFa):**
+
+```markdown
+<div vocab="https://schema.org/" typeof="Person">
+  <span property="name">Alice</span>
+</div>
+```
+
+**Что генерирует (HTML + RDFa):**
+
+```html
+<div vocab="https://schema.org/" typeof="Person">
+  <span property="name">Alice</span>
+</div>
+```
+
+RDFa-триплеты извлекаются из готового HTML через `pyRdfa`.
+
+**Преимущества:**
+- Работает в HTML-рендеринге — RDFa-атрибуты видны в браузере.
+- Не требует отдельного RDF-файла.
+- Python-Markdown расширение, легко интегрируется в существующие пайплайны.
+
+**Недостатки:**
+- Привязан к HTML, не к Markdown — семантика «размазана» по тегам.
+- Плохо переносится между системами (Obsidian, Logseq и т.д.).
+- Последнее обновление — 5 лет назад.
+- Требует `pyRdfa` для извлечения триплетов.
+
+**Ссылка:** https://github.com/tetherless-world/markdown-rdfa
+
+---
+
+## 5. mdx_semanticdata (aleray)
+
+**Пример (mdx_semanticdata):**
+
+```markdown
+%% property :: content | label %%
+```
+
+Согласно описанию, конструкция `%% property :: content | label %%` превращается в `<span>` с атрибутами `property` и `content`.
+
+**Что генерирует (HTML + RDFa):**
+
+```html
+<span property="..." content="...">label</span>
+```
+
+**Преимущества:**
+- Компактный синтаксис с `%%` — меньше визуального шума.
+- Наследует все преимущества RDFa в HTML.
+
+**Недостатки:**
+- **Очень мало документации** — PyPI-страница содержит `UNKNOWN` вместо описания.
+- Последнее обновление — 2012 год.
+- Фактически не поддерживается сообществом.
+- Проблемы интеграции с django-wiki из-за санитизации HTML.
+
+**Ссылка:** https://pypi.org/project/mdx_semanticdata/
+
+---
+
+## 6. Lexify
+
+**Пример (Lexify):**
+
+```html
+<dl>Baseball Pitching Terms
+<dt><a href="https://authoritativeSource.com">Fastball</a>
+<dd>A pitch thrown at or near maximum speed
+<dt>Change Up
+<dd>A pitch that mimics a fastball's mechanics, but is held deeper in the hand...
+```
+
+**Что генерирует (HTML + RDFa + JSON-LD):**
+
+HTML с RDFa-разметкой и JSON-LD, валидный по schema.org.
+
+**Преимущества:**
+- Компактный формат definition lists — легко читается в GitHub.
+- Генерирует **и** HTML+RDFa, **и** JSON-LD одновременно.
+- Использует Mustache-шаблоны для кастомизации вывода.
+
+**Недостатки:**
+- **Очень узкая специализация** — только definition lists (глоссарии).
+- Не подходит для произвольных заметок Zettelkasten.
+- Требует подготовки `template/lexicon.mustache` вручную.
+- Последняя версия — 1.0.5, проект не развивается.
+
+**Ссылка:** https://github.com/dtex/lexify
+
+---
+
+## 📊 Сводная таблица
+
+| Формат | Синтаксис | Что генерирует | Round-trip | Читаемость | Активность | Для Zettelkasten? |
+|---|---|---|---|---|---|---|
+| **MD-LD** (mdld-parse) | `{=IRI}`, `{+IRI ?pred}`, `[text]{pred}` | RDF/JS quads + чистый MD | ✅ Да | Высокая | 2025 | ✅ Да |
+| **Markdown-LD** (ozekik) | Заголовки + инлайн-код `` ` `` | Turtle, JSON-LD | ❌ Нет | Средняя | 2024 | ⚠️ Ограниченно |
+| **Vault-LD** | YAML-LD frontmatter + `@context` | RDF-граф из frontmatter | ✅ Да | Высокая | 2026 | ✅ Да |
+| **Markdown-RDFa** | HTML-теги с RDFa-атрибутами | HTML + RDFa | ❌ Нет | Средняя | 2015 | ❌ Нет |
+| **mdx_semanticdata** | `%% property :: content \| label %%` | HTML + RDFa | ❌ Нет | Средняя | 2012 | ❌ Нет |
+| **Lexify** | Definition lists (`<dt>`/`<dd>`) | HTML + RDFa + JSON-LD | ❌ Нет | Высокая | 2019 | ❌ Только глоссарии |
+
+---
+
+## 💡 Вывод
+
+Для семантического Zettelkasten на Markdown сегодня реально работают **два подхода**:
+
+1. **MD-LD (mdld-parse)** — если нужна богатая семантика внутри текста, round-trip и работа в браузере.
+2. **Vault-LD** — если вы уже используете YAML frontmatter в Obsidian и хотите добавить RDF без изменения синтаксиса тела заметки.
+
+Остальные форматы (Markdown-RDFa, mdx_semanticdata, Lexify) либо устарели, либо слишком узкоспециализированы. **Markdown-LD (ozekik)** интересен как «literate programming для Turtle», но не поддерживает обратное преобразование и требует CLI.
+
+**Ссылки:**
+- MD-LD (mdld-parse) — https://www.npmjs.com/package/mdld-parse
+- Markdown-LD (ozekik) — https://github.com/ozekik/markdown-ld
+- Vault-LD — https://github.com/The-Knowledge-Graph-Guys/vault-ld
+- Markdown-RDFa — https://github.com/tetherless-world/markdown-rdfa
+- mdx_semanticdata — https://pypi.org/project/mdx_semanticdata/
+- Lexify — https://github.com/dtex/lexify
