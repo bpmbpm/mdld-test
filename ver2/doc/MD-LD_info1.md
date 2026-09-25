@@ -94,3 +94,45 @@
 - `mdld-parse` (davay42): https://github.com/davay42/mdld-parse
 - Python-порт `mdld-py`: https://github.com/alan8373/mdld-py
 - Спецификация MD-LD (davay42): https://raw.githubusercontent.com/alan8373/mdld-py/main/spec/Spec.md
+
+## 2 MD-LD+
+
+Помимо `ozekik/markdown-ld` и `mdld-parse`, существует еще несколько проектов, которые решают схожую задачу — добавление семантической разметки в Markdown. Я разделил их на три категории по способу работы с семантикой.
+
+### 📊 Сводная таблица проектов семантической разметки Markdown
+
+| Проект | Категория | Синтаксис / Подход | Что генерирует | Ключевая особенность |
+|---|---|---|---|---|
+| **mdld-parse** (davay42) | Встроенная (In-band) | Аннотации в фигурных скобках `{...}`, встроенные прямо в текст. Субъект задается через `{=IRI}`. | RDF-квады (совместимы с RDF/JS), «чистый» Markdown без аннотаций (`result.md`). | Round-trip (parse ↔ generate), потоковый парсер, zero-dependency, работает в браузере. |
+| **ozekik/markdown-ld** | Встроенная (In-band) | «Literate programming» для Turtle. Субъект — заголовок H2, предикат — H3, объект — элемент списка. RDF-термы в инлайн-коде (`` ` ``). | Turtle (по умолчанию) или JSON-LD (через `@frogcat/ttl2jsonld`). | Компилятор на базе `unified`/`remark`, есть CLI и онлайн-playground. **Не поддерживает round-trip**. |
+| **Vault-LD** | Встроенная (In-band) | YAML-LD frontmatter + общий `@context.jsonld` в корне vault. Проза в теле заметки не аннотируется. | RDF-граф (проекция frontmatter в триплеты). | **Round-trip с полной точностью**: RDF → vault → RDF. Онтология и заметка — «один и тот же объект». |
+| **markdown-ld-kb** (lqdev) | Внешняя (Out-of-band) | Обычный Markdown с YAML frontmatter. Семантика извлекается **LLM-пайплайном** в CI (GitHub Models). | RDF/JSON-LD граф, статический сайт, serverless SPARQL-endpoint. | LLM сам извлекает сущности и связи из обычного текста. Поддерживает `/api/ask` для запросов на естественном языке. |
+| **Markdown-LD Knowledge Bank** (managedcode) | Внешняя (Out-of-band) | Обычный Markdown / MDX / text с frontmatter. Извлечение фактов через `IChatClient` (LLM) или `Tiktoken` (детерминированно). | In-memory RDF-граф, SPARQL (read-only), SHACL-валидация, экспорт в Turtle/JSON-LD, диаграммы Mermaid/DOT. | .NET 10 библиотека. Есть режим `Tiktoken` — **без сети и LLM**, на основе токенов и структуры документа. |
+| **vault-triplifier** | Внешняя (Out-of-band) | Markdown с Obsidian-синтаксисом (`::`, `[[...]]`). | RDF/Turtle. | Конвертирует как Markdown-файлы, так и Obsidian Canvas. Работает с существующими vault'ами. |
+| **rdf-markdown-shacl** | Внешняя (Out-of-band) | Извлечение RDF из Markdown **на основе SHACL-шэйпов**. | RDF-триплеты. | SHACL-шэйпы задают, как именно парсить Markdown в RDF. Подход «schema-first». |
+| **markdown-rdfa** (tetherless-world) | Встроенная (In-band) | Встраивание **RDFa Lite** прямо в Markdown (атрибуты в HTML-подобном синтаксисе). | HTML с RDFa-атрибутами. | Python-Markdown расширение. RDFa-триплеты извлекаются из готового HTML. |
+| **mdx_semanticdata** | Встроенная (In-band) | Python-Markdown расширение для добавления **RDFa** в Markdown. | HTML с RDFa. | Аналогичен `markdown-rdfa`, но реализован как расширение `mdx`. |
+| **lexify** | Встроенная (In-band) | Компактный формат definition lists в `.md` файлах. | HTML с RDFa + JSON-LD. | Конвертирует «lexicon»-файлы в HTML и JSON-LD, валидный по schema.org. |
+
+### 💡 Что важно понимать
+
+**Разница между «встроенной» и «внешней» семантикой**:
+
+- **Встроенная (In-band)** — семантика находится **внутри** Markdown-файла. Читатель видит аннотации (или они скрыты за синтаксисом). Парсер извлекает RDF. Примеры: `mdld-parse`, `ozekik/markdown-ld`, Vault-LD.
+- **Внешняя (Out-of-band)** — Markdown остается «чистым», а семантика извлекается **отдельным инструментом** (CI-пайплайн, LLM, SHACL-шэйпы). Примеры: `markdown-ld-kb`, `vault-triplifier`, `rdf-markdown-shacl`.
+
+**Ключевой критерий выбора**:
+- Если вы хотите **редактировать граф знаний вручную** и видеть семантику в тексте — берите встроенные форматы (`mdld-parse`, Vault-LD).
+- Если вы хотите **писать обычный текст**, а семантику получать автоматически — берите внешние инструменты (`markdown-ld-kb`, `vault-triplifier`).
+
+**Ссылки:**
+- mdld-parse — https://www.npmjs.com/package/mdld-parse
+- ozekik/markdown-ld — https://github.com/ozekik/markdown-ld
+- Vault-LD — https://github.com/The-Knowledge-Graph-Guys/vault-ld
+- markdown-ld-kb (lqdev) — https://github.com/lqdev/markdown-ld-kb
+- Markdown-LD Knowledge Bank (managedcode) — https://github.com/managedcode/markdown-ld-kb
+- vault-triplifier — https://www.npmjs.com/package/vault-triplifier
+- rdf-markdown-shacl — https://packages.ecosyste.ms/registries/npmjs.org/packages/rdf-markdown-shacl
+- markdown-rdfa — https://github.com/tetherless-world/markdown-rdfa
+- mdx_semanticdata — https://pypi.org/project/mdx-semantic/
+- lexify — https://cdn.jsdelivr.net/npm/lexify
