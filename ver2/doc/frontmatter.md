@@ -1,4 +1,9 @@
 ## 1
+matter - иметь значение  
+front matter - Предварительные сведения
+- http://dimayakovlev.ru/blog/front-matter-in-markdown/
+- [Разработка требований к ПО с помощью Markdown, Git и Obsidian](https://habr.com/ru/articles/927152/)
+
 **Frontmatter** — это специальный блок в самом начале файла (чаще всего Markdown), где вы указываете **метаданные** документа. То есть не сам текст статьи или заметки, а информацию о ней: заголовок, описание (например, для SEO), автор, даты, теги, настройки отображения и так далее. [```1```](https://www.markdownlang.com/ru/advanced/frontmatter.html)[```19```](http://dimayakovlev.ru/blog/front-matter-in-markdown/)[```14```](https://dev.to/dailydevtips1/what-exactly-is-frontmatter-123g)
 
 ## Как это выглядит
