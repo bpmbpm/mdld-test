@@ -133,3 +133,171 @@ ex:alice a schema:Person ;
 - N3.Writer API (документация) — https://github.com/rdfjs/N3.js/blob/main/README.md#writing
 - RDF/JS Quad specification — https://rdf.js.org/data-model-spec/
 - Turtle (W3C) — https://www.w3.org/TR/turtle/
+
+## 1.1
+Давайте разберём всё по порядку: сначала детально восстановим алгоритм работы вашего приложения и все вызовы внешних функций, а затем ответим на ключевой вопрос — можно ли запретить сокращения в N3.Writer.
+
+---
+
+## 🧭 Алгоритм работы приложения (пошагово)
+
+Ваш `index.html` работает по следующему сценарию:
+
+### Этап 1. Инициализация (при загрузке страницы)
+
+1. **Импорт библиотек через CDN** (`await import(...)`):
+   - `mdld-parse` — парсер MD-LD;
+   - `oxigraph/web.js` — WASM-сборка RDF-хранилища;
+   - `marked` — рендеринг Markdown в HTML;
+   - `n3` — сериализация RDF в Turtle.
+
+2. **Инициализация Oxigraph WASM**: вызов `oxMod.default()` компилирует WebAssembly.
+
+3. **Создание пустого RDF-хранилища**: `new oxigraph.Store()`.
+
+4. **Загрузка манифестов** (`fetch`):
+   - `notes/manifest.json` — список заметок;
+   - `SPARQL/manifest.json` — список запросов.
+
+5. **Заполнение выпадающих списков** (`<select>`) на основе манифестов.
+
+6. **Загрузка всех заметок в RDF-граф** (фоновая операция):
+   - для каждого `.md` файла: `fetch` → `mdldParse.parse({ text })` → `store.add(quad)` для каждого квада.
+
+### Этап 2. Работа с заметкой (при выборе в списке)
+
+1. `fetch('./notes/<file>')` — загрузка исходного MD-LD.
+2. Отображение **raw Markdown** (как есть, с аннотациями `{...}`).
+3. `mdldParse.parse({ text })` — извлечение RDF-квадов и «чистого» Markdown (`result.md`).
+4. `marked.parse(cleanMd)` — рендеринг очищенного Markdown в HTML.
+5. Создание `N3.Writer` с префиксами.
+6. `writer.addQuad(quad)` для каждого квада.
+7. `writer.end(callback)` — получение строки Turtle и вывод в панель.
+
+### Этап 3. Работа с SPARQL (при выборе запроса)
+
+1. `fetch('./SPARQL/<file>')` — загрузка текста запроса.
+2. Отображение кода запроса.
+3. По кнопке **Выполнить**: `store.query(sparql)` → итерация по `binding` → построение HTML-таблицы.
+
+### Этап 4. Логирование
+
+Все ключевые вызовы обёрнуты в функцию `log()` и `trace()`, которые пишут в `<div id="log">`.
+
+---
+
+## 📞 Детальный разбор вызовов внешних функций
+
+| № | Библиотека | Функция / метод | Аргументы | Возвращает | Где в коде |
+|---|---|---|---|---|---|
+| 1 | `mdld-parse` | `parse(options)` | `{ text: string }` | `{ quads: Quad[], md: string, primary, statements, origin }` | после fetch заметки |
+| 2 | `oxigraph` | `new Store()` | — | объект Store | при инициализации |
+| 3 | `oxigraph` | `store.add(quad)` | `Quad` | `void` | в цикле по quads |
+| 4 | `oxigraph` | `store.size` | — | `number` | для лога |
+| 5 | `oxigraph` | `store.query(sparql)` | `string` | итерируемый объект `Binding[]` | при выполнении SPARQL |
+| 6 | `marked` | `marked.parse(md)` | `string` | `string` (HTML) | после parse MD-LD |
+| 7 | `n3` | `new N3.Writer(options)` | `{ format, prefixes }` | объект Writer | перед сериализацией |
+| 8 | `n3` | `writer.addQuad(quad)` | `Quad` | `void` | в цикле по quads |
+| 9 | `n3` | `writer.end(callback)` | `(err, out) => void` | через callback: `string` (Turtle) | после addQuad |
+| 10 | `fetch` | `fetch(url)` | `string` (URL) | `Promise<Response>` | для манифестов, заметок, SPARQL |
+| 11 | `fetch` | `response.json()` | — | `Promise<any>` | для манифестов |
+| 12 | `fetch` | `response.text()` | — | `Promise<string>` | для заметок и SPARQL |
+
+**Важно:** `writer.end()` — единственная функция, которая **возвращает** готовую строку Turtle. До её вызова сериализация не происходит, квады только буферизуются.
+
+---
+
+## 🚫 Можно ли запретить сокращения (`;`, `,`, `a`) в N3.Writer?
+
+**Краткий ответ: в N3.Writer нет прямой опции для этого.** Однако есть три обходных пути.
+
+### Путь 1. Использовать формат `N-Triples` вместо `Turtle`
+
+N-Triples по спецификации **не поддерживает** ни префиксы, ни сокращения `;`/`,`, ни `a` вместо `rdf:type`. Каждый триплет пишется в отдельной строке полностью.
+
+```js
+const writer = new N3.Writer({ format: 'N-Triples' });
+```
+
+Пример вывода:
+```
+<tag:example.org,2026:alice> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://schema.org/Person> .
+<tag:example.org,2026:alice> <http://schema.org/name> "Алиса" .
+```
+
+**Плюсы:** гарантированно полная запись без сокращений.
+**Минусы:** теряются префиксы — IRI пишутся целиком; нет группировки; формат менее читаем для человека.
+
+### Путь 2. Использовать `rdflib.js` с флагом `'p'`
+
+Библиотека `rdflib.js` (не путать с N3.js) предоставляет флаги сериализации. Флаг `'p'` **полностью отключает сокращение префиксов** — все термы пишутся как `<...>` IRI.
+
+```js
+import { graph, serialize, sym } from 'rdflib';
+const turtle = serialize(doc, kb, doc.value, 'text/turtle', undefined, { flags: 'p' });
+```
+
+Однако `rdflib.js` не является заменой Oxigraph — это отдельная библиотека с собственным store. Интеграция потребует переписывания логики.
+
+### Путь 3. Ручная сериализация квадов
+
+Самый надёжный способ — писать Turtle вручную, обходя N3.Writer. Вы просто итерируетесь по `result.quads` и формируете строки:
+
+```js
+function quadsToFullTurtle(quads, prefixes = {}) {
+  let out = '';
+  // Префиксы (опционально)
+  for (const [p, iri] of Object.entries(prefixes)) {
+    out += `@prefix ${p}: <${iri}> .\n`;
+  }
+  out += '\n';
+  // Каждый квад — отдельная строка
+  for (const q of quads) {
+    const s = formatTerm(q.subject);
+    const p = formatTerm(q.predicate);
+    const o = formatTerm(q.object);
+    out += `${s} ${p} ${o} .\n`;
+  }
+  return out;
+}
+
+function formatTerm(term) {
+  if (term.termType === 'NamedNode') return `<${term.value}>`;
+  if (term.termType === 'Literal') {
+    let s = `"${term.value}"`;
+    if (term.language) s += `@${term.language}`;
+    else if (term.datatype && term.datatype.value !== 'http://www.w3.org/2001/XMLSchema#string') {
+      s += `^^<${term.datatype.value}>`;
+    }
+    return s;
+  }
+  if (term.termType === 'BlankNode') return `_:${term.value}`;
+  return String(term.value);
+}
+```
+
+**Плюсы:** полный контроль; никаких сокращений.
+**Минусы:** нужно вручную обрабатывать все типы термов; нет автоматической группировки.
+
+---
+
+## 📊 Сравнение вариантов
+
+| Вариант | Сокращения `;`/`,` | `rdf:type` → `a` | Префиксы | Сложность |
+|---|---|---|---|---|
+| **N3.Writer (Turtle)** | ✅ Автоматически | ✅ Автоматически | ✅ Есть | Низкая |
+| **N3.Writer (N-Triples)** | ❌ Нет | ❌ Нет | ❌ Нет | Низкая |
+| **rdflib.js (flags: 'p')** | Зависит от флагов | Зависит от флагов | ❌ Отключены | Средняя |
+| **Ручная сериализация** | ❌ Нет | ❌ Нет | ✅ Можно | Высокая |
+
+---
+
+## 💎 Итог
+
+**Для запрета сокращений в N3.Writer прямой опции нет.** Самый простой путь — переключиться на `format: 'N-Triples'`, который по определению не использует сокращений. Если нужны префиксы, но без `;`/`,`/`a` — придётся писать сериализатор вручную или использовать `rdflib.js` с флагом `'p'`.
+
+**Ссылки:**
+- N3.js (Writing) — https://github.com/rdfjs/N3.js#writing
+- N-Triples (W3C) — https://www.w3.org/TR/n-triples/
+- rdflib.js (serializer flags) — https://github.com/linkeddata/rdflib.js
+- Turtle (W3C) — https://www.w3.org/TR/turtle/
