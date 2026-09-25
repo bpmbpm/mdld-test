@@ -478,3 +478,98 @@ Vault-LD рекомендует хранить общий `@context` в корн
 - Vault-LD Example vault — https://github.com/The-Knowledge-Graph-Guys/vault-ld/tree/main/Vault-LD%20Example
 - YAML-LD спецификация — https://json-ld.github.io/yaml-ld/spec/
 - JSON-LD 1.1 (W3C) — https://www.w3.org/TR/json-ld11/
+
+## 3b
+
+Вы правы, в предыдущем примере Turtle был неполным — без объявления префиксов и базового IRI. Это делает его синтаксически невалидным для парсеров. Разберём всё по порядку.
+
+### 🧩 Что означает `<#alice>`
+
+`<#alice>` — это **относительный IRI** (IRI reference) с фрагментом. В Turtle, как и в JSON-LD, относительные IRI разрешаются относительно **базового IRI**, заданного директивой `@base`. Если в документе указано:
+
+```turtle
+@base <https://example.org/notes/alice.md> .
+```
+
+то `<#alice>` превращается в `<https://example.org/notes/alice.md#alice>`. Если `@base` не задан, парсер использует IRI самого документа, что делает результат непредсказуемым.
+
+В Vault-LD `@base` задаётся в `context.jsonld` и определяет пространство имён для субъектов. Без него `<#alice>` не имеет смысла.
+
+### 📂 Законченный пример: от frontmatter к валидному Turtle
+
+**Файл `notes/alice.md` (frontmatter):**
+
+```yaml
+---
+"@context": "./context.jsonld"
+"@id": "#alice"
+"@type": "schema:Person"
+schema:name: "Алиса"
+schema:knows:
+  "@id": "#bob"
+  "@type": "schema:Person"
+  schema:name: "Боб"
+---
+```
+
+**Файл `context.jsonld` (в корне vault):**
+
+```json
+{
+  "@context": {
+    "@base": "https://example.org/notes/alice.md",
+    "schema": "https://schema.org/",
+    "type": "@type",
+    "id": "@id"
+  }
+}
+```
+
+**Итоговый Turtle (после экспорта):**
+
+```turtle
+@base <https://example.org/notes/alice.md> .
+@prefix schema: <https://schema.org/> .
+
+<#alice> a schema:Person ;
+    schema:name "Алиса" ;
+    schema:knows <#bob> .
+
+<#bob> a schema:Person ;
+    schema:name "Боб" .
+```
+
+**Почему это валидно:**
+- `@base` задаёт базовый IRI, относительно которого разрешаются `<#alice>` и `<#bob>`.
+- `@prefix schema:` объявляет префикс для `https://schema.org/`.
+- Все триплеты завершаются точкой, субъекты и предикаты корректны.
+
+### 🔍 Как это получается из Vault-LD
+
+В Vault-LD префиксы определяются в `context.jsonld`, а не в самом Markdown-файле. Спецификация (§4.2) описывает **композицию контекстов**: корневой `context.jsonld` содержит общие префиксы (`owl`, `rdfs`, `skos`, `xsd`, `sdo`), а каждый онтологический контекст добавляет свои термины. Когда Vault-LD-инструмент экспортирует граф в Turtle, он **обязан** преобразовать эти определения в директивы `@prefix` и `@base`.
+
+Пример из официального репозитория Vault-LD показывает именно такую структуру: корневой `context.jsonld` объявляет `@base: "https://example.org/"` и префиксы, а онтологический контекст (например, Culinary) добавляет `@base: "https://example.org/culinary#"` и свои термины. При экспорте в Turtle это даёт:
+
+```turtle
+@prefix cul: <https://example.org/culinary#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@base <https://example.org/> .
+
+<https://example.org/hummus> a cul:Recipe ;
+    cul:requiresIngredient <https://example.org/Chickpeas> ;
+    cul:prepTimeMinutes "25"^^xsd:integer .
+```
+
+Здесь `<https://example.org/hummus>` — это IRI, «отчеканенный» из имени файла `hummus.md` по правилу §4.5: `@base` + имя файла без `.md`.
+
+### 💎 Итог
+
+Без `@prefix` и `@base` Turtle-фрагмент не является валидным RDF-документом. `<#alice>` — это сокращение, которое работает только при наличии `@base`. В Vault-LD префиксы и базовые IRI определяются в `context.jsonld`, а экспортер в Turtle обязан их материализовать.
+
+**Ссылки:**
+- Vault-LD (GitHub) — https://github.com/The-Knowledge-Graph-Guys/vault-ld
+- Vault-LD SPEC.md — https://github.com/The-Knowledge-Graph-Guys/vault-ld/blob/main/SPEC.md
+- Vault-LD Example (context.jsonld) — https://github.com/The-Knowledge-Graph-Guys/vault-ld/blob/main/Vault-LD%20Example/context.jsonld
+- Turtle (W3C) — https://www.w3.org/TR/turtle/
+- JSON-LD 1.1 @base — https://www.w3.org/TR/json-ld11/#base-iri
+  
