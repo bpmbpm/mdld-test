@@ -1,0 +1,10 @@
+# Место работы персон.
+PREFIX schema: <http://schema.org/>
+
+SELECT ?personName ?orgName
+WHERE {
+  ?person schema:name ?personName ;
+          schema:worksFor ?org .
+  ?org schema:name ?orgName .
+}
+ORDER BY ?personName

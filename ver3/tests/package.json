@@ -1,0 +1,15 @@
+{
+  "name": "mdld-ver3-tests",
+  "private": true,
+  "description": "Автотесты ver3 (Node.js). Само приложение — только браузерный JS.",
+  "scripts": {
+    "test": "node --test --test-timeout=60000 *.test.js",
+    "build-data": "node build-data.js"
+  },
+  "devDependencies": {
+    "mdld-parse": "1.0.8",
+    "n3": "2.7.12",
+    "oxigraph": "0.5.11",
+    "playwright": "^1.55.0"
+  }
+}

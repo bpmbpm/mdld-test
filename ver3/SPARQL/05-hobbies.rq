@@ -1,0 +1,11 @@
+# Увлечения персон. В ver2 переменная ?hobbyName не выводилась, а данные были пустыми.
+PREFIX schema: <http://schema.org/>
+
+SELECT ?personName ?hobbyName
+WHERE {
+  ?person a schema:Person ;
+          schema:name ?personName ;
+          schema:knowsAbout ?hobby .
+  ?hobby schema:name ?hobbyName .
+}
+ORDER BY ?personName ?hobbyName
