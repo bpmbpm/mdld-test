@@ -1,0 +1,11 @@
+# Все персоны. В ver2 было пусто: префикс schema не был объявлен в заметках,
+# и mdld-parse создавал IRI <schema:Person> вместо <http://schema.org/Person>.
+PREFIX schema: <http://schema.org/>
+
+SELECT ?person ?name ?city
+WHERE {
+  ?person a schema:Person ;
+          schema:name ?name .
+  OPTIONAL { ?person schema:address/schema:addressLocality ?city }
+}
+ORDER BY ?name

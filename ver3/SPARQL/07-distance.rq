@@ -1,0 +1,14 @@
+# Расстояние между персонами.
+PREFIX schema: <http://schema.org/>
+PREFIX ex: <tag:example.org,2026:>
+
+SELECT ?fromName ?toName ?value ?unit
+WHERE {
+  ?dist a ex:Distance ;
+        schema:value ?value ;
+        schema:unitText ?unit ;
+        ex:from ?from ;
+        ex:to ?to .
+  ?from schema:name ?fromName .
+  ?to schema:name ?toName .
+}

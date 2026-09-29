@@ -1,0 +1,10 @@
+# Все именованные ресурсы и их типы (в заметках нет schema:CreativeWork,
+# поэтому запрос ver2 был пустым — здесь выбираем все сущности с именем).
+PREFIX schema: <http://schema.org/>
+
+SELECT ?entity ?type ?name
+WHERE {
+  ?entity a ?type ;
+          schema:name ?name .
+}
+ORDER BY ?type ?name

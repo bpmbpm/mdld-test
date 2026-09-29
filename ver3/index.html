@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MD-LD Semantic Zettelkasten — ver3</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- CSS GitHub для вида «Markdown (GitHub)» -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.8.1/github-markdown-light.css">
+</head>
+<body>
+  <h1>📚 MD-LD Semantic Zettelkasten <small>ver3</small></h1>
+  <p class="hint">
+    Каждое из трёх окон показывает заметку в выбранном <b>виде</b>: Markdown (raw), Markdown (отрендеренный),
+    RDF (Turtle) или Markdown (GitHub). Кнопка «Сохранить» скачивает текущий вид.
+    Работает на GitHub Pages и локально (file://) — см. <a href="doc/CORS.md">doc/CORS.md</a>.
+  </p>
+
+  <section>
+    <h2>0. Источник данных</h2>
+    <div class="toolbar">
+      <label for="source-select">Источник:</label>
+      <select id="source-select">
+        <option value="web">Web (файлы рядом с index.html)</option>
+        <option value="bundle">data.js (встроенная копия, для file://)</option>
+        <option value="github">GitHub (raw, актуальная ветка)</option>
+        <option value="folder">Локальная папка… (выбрать ver3)</option>
+      </select>
+      <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
+      <button id="reload">⟳ Обновить</button>
+      <label><input type="checkbox" id="auto-sync"> автообновление каждые</label>
+      <input type="number" id="auto-sync-sec" value="60" min="5" style="width:4rem"> с
+      <button id="export-data">Экспорт data.js</button>
+    </div>
+    <p id="source-info">загрузка…</p>
+  </section>
+
+  <section>
+    <h2>1. Заметки</h2>
+    <label for="note-select">Выберите заметку:</label>
+    <select id="note-select"><option value="">— загрузка списка заметок —</option></select>
+    <div class="panel-3">
+      <div>
+        <div class="pane-head">
+          <select id="view-0" title="Вид"></select>
+          <button id="save-0" disabled>Сохранить</button>
+        </div>
+        <div id="pane-0"><em>Заметка не выбрана</em></div>
+      </div>
+      <div>
+        <div class="pane-head">
+          <select id="view-1" title="Вид"></select>
+          <button id="save-1" disabled>Сохранить</button>
+        </div>
+        <div id="pane-1"><em>Заметка не выбрана</em></div>
+      </div>
+      <div>
+        <div class="pane-head">
+          <select id="view-2" title="Вид"></select>
+          <button id="save-2" disabled>Сохранить</button>
+        </div>
+        <div id="pane-2"><em>Заметка не выбрана</em></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. SPARQL-запросы</h2>
+    <label for="sparql-select">Выберите запрос:</label>
+    <select id="sparql-select"><option value="">— загрузка списка запросов —</option></select>
+    <button id="run-sparql" disabled>Выполнить</button>
+    <div class="panel-3" style="grid-template-columns: 1fr 1fr;">
+      <div>
+        <div class="pane-head">
+          <h3 style="flex:1;margin:0">Код запроса (можно редактировать)</h3>
+          <button id="save-code">Сохранить</button>
+        </div>
+        <textarea id="sparql-code" spellcheck="false"></textarea>
+      </div>
+      <div>
+        <div class="pane-head">
+          <h3 style="flex:1;margin:0">Результат</h3>
+          <button id="save-result" disabled>Сохранить (CSV)</button>
+        </div>
+        <div id="sparql-result" class="sparql-result"><em>—</em></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. Лог выполнения</h2>
+    <div id="log"></div>
+  </section>
+
+  <!-- Обычные (не module) скрипты: работают и по file:// (см. doc/CORS.md) -->
+  <script src="config.js"></script>          <!-- настройки -->
+  <script src="data.js"></script>            <!-- копия notes/ и SPARQL/ для file:// -->
+  <script src="js/core.js"></script>         <!-- чистые функции -->
+  <script src="js/start.js"></script>        <!-- часть 1: инициализация -->
+  <script src="js/app.js"></script>          <!-- часть 2: исполнение -->
+</body>
+</html>

@@ -1,0 +1,8 @@
+# Количество сущностей каждого типа (вместо подсчёта заметок по авторам:
+# в заметках нет schema:author).
+SELECT ?type (COUNT(?entity) AS ?count)
+WHERE {
+  ?entity a ?type .
+}
+GROUP BY ?type
+ORDER BY DESC(?count)
