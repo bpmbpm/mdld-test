@@ -531,3 +531,68 @@ Percent-encoded: `#%D0%B0%D0%BB%D0%B8%D1%81%D0%B0`.
 - CommonMark: hard line breaks — https://spec.commonmark.org/0.31.2/#hard-line-breaks
 - Turtle: комментарии — https://www.w3.org/TR/turtle/#sec-grammar-grammar
 - GitHub: автолинки — https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#autolinked-references-and-urls
+
+## 2
+
+Эта строка — корректное объявление префикса `rdf:` в Turtle. Но в контексте «сырого Turtle внутри `.md`» у неё есть **две тонкости**, которые стоит учесть.
+
+### 🧩 Тонкость 1. Два пробела в конце
+
+Чтобы GitHub не склеил строку со следующей, после `.` нужно поставить **два пробела**:
+
+```
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .··
+```
+
+(где `··` — два пробела). Иначе следующая строка прильнёт к этой.
+
+### 🧩 Тонкость 2. Завершающий `#` в IRI
+
+IRI `http://www.w3.org/1999/02/22-rdf-syntax-ns#` заканчивается на `#`. Это **правильно** с точки зрения RDF: `#` — часть пространства имён (hash namespace), и именно к нему «приклеиваются» локальные имена (`rdf:type` → `http://www.w3.org/1999/02/22-rdf-syntax-ns#type`).
+
+Но при рендеринге GitHub возможны два поведения:
+
+| Что делает GitHub | Как выглядит |
+|---|---|
+| **Автолинк** `<...>` | `http://www.w3.org/1999/02/22-rdf-syntax-ns#` превращается в кликабельную ссылку |
+| **Якорь** `#` внутри страницы | В некоторых рендерерах `#` после URL может интерпретироваться как фрагмент |
+
+На практике GitHub обрабатывает `<http://...>` как **автолинк** и оставляет `#` в составе URL. Парсеру RDF это не мешает — он читает исходный текст, а не отрендеренный HTML.
+
+### ✅ Как выглядит полный блок префиксов
+
+```
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .··
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .··
+@prefix owl: <http://www.w3.org/2002/07/owl#> .··
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .··
+@prefix onto: <https://github.com/bpmbpm/onto/blob/main/ver1/ontology1.md#> .··
+@prefix ex: <https://github.com/bpmbpm/onto/blob/main/example1/test1.md#> .··
+```
+
+### 💡 Рекомендация
+
+Если вас смущает «голый» `#` в конце IRI на отрендеренной странице — есть обходной приём: **percent-encoded `#`** (`%23`).
+
+```
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns%23> .··
+```
+
+**Но:** RDF-парсеры **не декодируют** percent-encoding в IRI — для них `%23` останется `%23`, а не `#`. Это **сломает** все триплеты с префиксом `rdf:`. Поэтому **не делайте так**.
+
+Правильный подход: оставить `#` как есть. Это стандарт для hash-namespace, и все RDF-инструменты (Protégé, Jena, rdflib) именно так и работают.
+
+### 📊 Итог
+
+| Вопрос | Ответ |
+|---|---|
+| Синтаксис `@prefix rdf: <...rdf-syntax-ns#> .` корректен? | ✅ Да |
+| Нужны ли два пробела в конце? | ✅ Да, иначе Markdown склеит строки |
+| `#` в конце IRI — это правильно? | ✅ Да, это стандарт hash-namespace |
+| Заменять `#` на `%23`? | ❌ Нет, это сломает парсер |
+| GitHub отрендерит как ссылку? | ⚠️ Да, но парсер читает исходный текст |
+
+**Ссылки:**
+- Turtle: IRI references — https://www.w3.org/TR/turtle/#sec-iri-references
+- Hash namespaces vs slash namespaces (W3C) — https://www.w3.org/TR/cooluris/#hashvs
+- CommonMark: hard line breaks — https://spec.commonmark.org/0.31.2/#hard-line-breaks
